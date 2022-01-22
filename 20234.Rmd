@@ -1,0 +1,363 @@
+---
+title: '20234'
+author: "Santhan MR(20234)"
+date: "03/04/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(gridExtra)
+library(caret)
+library(MASS)
+library(moments)
+library(heplots)
+library(leaps)
+library(factoextra)
+```
+
+```{r}
+df <- read.csv('C:/Users/santh/Documents/R Codes/Fina project/diabetes.csv')
+head(df)
+dim(df)
+```
+
+```{r}
+any(is.na(df))
+```
+
+finding number of empty cells(0's in our case)
+```{r}
+count= 0
+for(j in 1:8)
+{
+  for (i in 1:nrow(df))
+  {
+    if(df[i,j] == 0)
+    {
+      count= count+1
+    }
+  }
+}
+
+count
+```
+
+replacing 0 cells with mean of their respective column
+```{r}
+for(j in 2:8)
+{
+  for (i in 1:nrow(df))
+  {
+    if(df[i,j] == 0)
+    {
+      df[i,j]= round(mean(df[,j]))
+    }
+  }
+}
+```
+
+```{r}
+df$Outcome <- as.factor(df$Outcome)
+```
+
+```{r}
+summary(df)
+```
+
+```{r}
+p1 <- ggplot(data = df, aes(x=BMI,y=Pregnancies,col=factor(Outcome)))+geom_point()
+p2 <- ggplot(data = df, aes(x=BMI,y=Glucose,col=factor(Outcome)))+geom_point()
+p3 <- ggplot(data = df, aes(x=BMI,y=BloodPressure,col=factor(Outcome)))+geom_point()
+p4 <- ggplot(data = df, aes(x=BMI,y=SkinThickness,col=factor(Outcome)))+geom_point()
+p5 <- ggplot(data = df, aes(x=BMI,y=Insulin,col=factor(Outcome)))+geom_point()
+p6 <- ggplot(data = df, aes(x=BMI,y=DiabetesPedigreeFunction,col=factor(Outcome)))+geom_point()
+p7 <- ggplot(data = df, aes(x=BMI,y=Age,col=factor(Outcome)))+geom_point()
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, ncol=2)
+```
+
+
+```{r}
+par(mfrow=c(5,2),mar=c(1,2,2,1))
+for(i in 1:8)
+{
+  plot(density(df[,i]),main = names(df)[i])
+}
+```
+
+```{r}
+for(i in 1:8)
+{
+  print(shapiro.test(as.numeric( df[,i])))
+  
+}
+shapiro.test(df$Glucose)
+```
+
+```{r}
+p1 <- ggplot(df,aes(Glucose))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("Glucose")
+
+p2 <- ggplot(df,aes(BloodPressure))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("BloodPressure")
+
+p3 <- ggplot(df,aes(SkinThickness))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("SkinThickness")
+
+
+p4 <- ggplot(df,aes(Insulin))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("Insulin")
+
+p5 <- ggplot(df,aes(BMI))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("BMI")
+
+p6 <- ggplot(df,aes(DiabetesPedigreeFunction))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("DiabetesPedigreeFunction")
+
+p7 <- ggplot(df,aes(Age))+geom_histogram(bins=40,col="purple",aes(y=..density..,fill=..count..)) +scale_fill_gradient("Count",low="turquoise",high="violet")+geom_density()+xlab("Age")
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, ncol=2)
+```
+
+```{r}
+p1 <- ggplot(df,aes(Glucose,fill = factor(Outcome)))+geom_boxplot()
+p2 <- ggplot(df,aes(BloodPressure,fill = factor(Outcome)))+geom_boxplot()
+p3 <- ggplot(df,aes(SkinThickness,fill = factor(Outcome)))+geom_boxplot()
+p4 <- ggplot(df,aes(Insulin,fill = factor(Outcome)))+geom_boxplot()
+p5 <- ggplot(df,aes(BMI,fill = factor(Outcome)))+geom_boxplot()
+p6 <- ggplot(df,aes(DiabetesPedigreeFunction,fill = factor(Outcome)))+geom_boxplot()
+p7 <- ggplot(df,aes(Age,fill = factor(Outcome)))+geom_boxplot()
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, ncol=2)
+```
+
+```{r}
+featurePlot(df[-c(9)],df$BMI)
+```
+
+# Splitting the data
+```{r}
+set.seed(7)
+index <- createDataPartition(df$Outcome, p = .80, list = FALSE)
+train <- df[index,]
+test <- df[-index,]
+
+dim(train)
+dim(test)
+```
+
+# Linear Regression
+
+```{r}
+mod0 <- lm(BMI~.,train)
+summary(mod0)
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(mod0)
+```
+```{r}
+shapiro.test(mod0$residuals)
+```
+
+```{r}
+mod1 <- lm(BMI~BloodPressure+SkinThickness+Age+Outcome,train)
+summary(mod1)
+```
+
+```{r}
+par(mfrow=c(2,2))
+plot(mod1)
+```
+
+```{r}
+shapiro.test(mod1$residuals)
+```
+
+```{r}
+bc_test <- boxcox(BMI~BloodPressure+SkinThickness+Age+Pregnancies+Glucose+Insulin+DiabetesPedigreeFunction+Age+Outcome,data=df)
+lambda <- bc_test$x[which.max(bc_test$y)]
+lambda
+```
+
+```{r}
+new <- ((df$BMI)^(lambda)-1)/lambda
+normal_mod <- lm(new~BloodPressure+SkinThickness+Age+Pregnancies+Glucose+Insulin+DiabetesPedigreeFunction+Age+Outcome,data=df)
+summary(normal_mod)
+```
+```{r}
+par(mfrow=c(2,2))
+plot(normal_mod)
+```
+
+```{r}
+shapiro.test(normal_mod$residuals)
+```
+
+```{r}
+sample<-sample_n(df, 5)
+pred<-predict(normal_mod, sample,interval = "confidence",level=0.9)
+pred<-(lambda*pred+1)**(1/lambda)
+pred
+view(df)
+```
+
+```{r}
+step.model <- stepAIC(normal_mod,direction = "backward",trace = TRUE)
+summary(step.model)
+```
+
+# Logestic regression
+```{r}
+lm_mod1 <- glm(Outcome~Glucose+BMI+Pregnancies+DiabetesPedigreeFunction,train,family = "binomial")
+summary(lm_mod1)
+```
+
+```{r}
+pred <-  predict(lm_mod1, type = "response")
+model_pred <- ifelse(pred>0.3, 1, 0)
+length(model_pred)
+length(pred)
+```
+
+```{r}
+acc <- mean(train$Outcome==model_pred)
+acc
+```
+
+```{r}
+tab <- table(Predicted=model_pred,actual=train$Outcome)
+tab
+```
+
+```{r}
+confusionMatrix(tab, positive='1',threshold = 0.5)
+```
+
+
+```{r}
+lda_mod <- lda(Outcome~Glucose+BMI+Pregnancies+DiabetesPedigreeFunction, data= train)
+plot(lda_mod)
+```
+
+```{r}
+df %>% filter(df$Outcome==0)
+```
+
+```{r}
+library(heplots)
+
+res <- boxM(df[,1:8], df[, "Outcome"])
+summary(res)
+#plot(res, gplabel="Outcome")
+```
+
+# Principal component analysis
+```{r}
+eigen <- eigen(cov(df[1:8]))
+eigen
+```
+
+```{r}
+PCA <- prcomp(df[1:8])
+summary(PCA)
+```
+
+```{r}
+x <- c(1:8)
+y <- eigen$values
+plot(x,y,type="l", main="Scree Plot",xlab = "components",ylab = "eigen vales")
+```
+
+# KNN
+```{r}
+train_control <-trainControl(method = "repeatedcv", number = 10, repeats = 3)
+
+knn_mod <- train(Outcome~.,data = train, method="knn",trControl=train_control,preProcess= c("center", "scale"), tuneLength = 10)
+
+knn_mod
+```
+
+```{r}
+plot(knn_mod)
+```
+
+```{r}
+knn_pred <- predict(knn_mod,newdata=train)
+confusionMatrix(knn_pred, reference = (train$Outcome), positive = "1")
+```
+
+```{r}
+```
+
+```{r}
+```
+
+```{r}
+clustering <- scale(df[,-c(9)])
+k2 <- kmeans(clustering, centers = 2,nstart = 30)
+k3 <- kmeans(clustering, centers = 3,nstart = 30)
+k4 <- kmeans(clustering, centers = 4,nstart = 30)
+k5 <- kmeans(clustering, centers = 5,nstart = 30)
+k6 <- kmeans(clustering, centers = 6,nstart = 30)
+k7 <- kmeans(clustering, centers = 7,nstart = 30)
+k8 <- kmeans(clustering, centers = 8,nstart = 30)
+k9 <- kmeans(clustering, centers = 9,nstart = 30)
+k10 <- kmeans(clustering, centers = 10,nstart = 30)
+
+## plots of clustering
+p1 <- fviz_cluster(k2, geom = "point",  data = clustering) + ggtitle("k = 2")
+p2 <- fviz_cluster(k3, geom = "point",  data = clustering) + ggtitle("k = 3")
+p3 <- fviz_cluster(k4, geom = "point",  data = clustering) + ggtitle("k = 4")
+p4 <- fviz_cluster(k5, geom = "point",  data = clustering) + ggtitle("k = 5")
+p5 <- fviz_cluster(k6, geom = "point",  data = clustering) + ggtitle("k = 6")
+p6 <- fviz_cluster(k7, geom = "point",  data = clustering) + ggtitle("k = 7")
+p7 <- fviz_cluster(k8, geom = "point",  data = clustering) + ggtitle("k = 8")
+p8 <- fviz_cluster(k9, geom = "point",  data = clustering) + ggtitle("k = 9")
+p9 <- fviz_cluster(k10, geom = "point",  data = clustering) + ggtitle("k = 10")
+
+grid.arrange(p1, p2, p3, p4, p5, p6, p7, p8, p9 , ncol = 3)
+```
+
+```{r}
+set.seed(8)
+fviz_nbclust(clustering, kmeans, method = "wss")
+```
+
+
+```{r}
+library(heplots)
+library(plyr)
+library(e1071)
+library(tidyverse)
+library(caret)
+library(gmodels)
+library(gridExtra)
+library(factoextra)
+library(corrplot)
+library(nortest)
+library(MASS)
+library(lattice)
+library(broom)
+library(cluster)
+library(randomForest)
+library(rpart)
+library(rpart.plot)
+clara.result <-  clara(df,k=9)
+table(clara.result$clustering, df$Outcome)
+```
+
+
+```{r}
+forest <- randomForest(Outcome~Glucose+BMI+Pregnancies+DiabetesPedigreeFunction,data= train,ntree = 600, mtry = 4, importance = TRUE)
+forest
+```
+
+```{r}
+predTest <- predict(forest, test, type = "class")
+test_forest_mat <- table(predTest, test$Outcome)
+confusionMatrix(test_forest_mat)
+```   
+
+```{r}
+(ggplot(df) + geom_col(aes(x = 1, y = length(df) , fill = Outcome),position="fill") + coord_polar(theta = "y"))
+```
+
